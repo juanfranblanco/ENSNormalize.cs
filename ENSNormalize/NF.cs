@@ -198,9 +198,15 @@ namespace ADRaffy.ENSNormalize
             return p.Packed;
         }
 
+
+#if NET35
         // TODO: change this to an iterator
+        internal List<int> ComposedFromPacked(IList<int> packed)
+        {
+#else
         internal List<int> ComposedFromPacked(IReadOnlyList<int> packed)
         {
+#endif
             List<int> cps = new();
             List<int> stack = new();
             int prev_cp = NONE;

@@ -36,20 +36,36 @@ namespace ADRaffy.ENSNormalize
         public readonly ReadOnlyIntSet NFCCheck;
         public readonly ReadOnlyIntSet PossiblyValid;
         public readonly ReadOnlyIntSet InvalidCompositions;
+#if NET35
+        
+        public readonly IDictionary<int, ICollection<int>> Mapped;
+        public readonly IDictionary<int, string> Fenced;
+        public readonly IList<Group> Groups;
+        public readonly IList<Whole> Wholes;
+        public readonly IList<EmojiSequence> Emojis;
+#else
         public readonly IReadOnlyDictionary<int, IReadOnlyList<int>> Mapped;
         public readonly IReadOnlyDictionary<int, string> Fenced;
         public readonly IReadOnlyList<Group> Groups;
         public readonly IReadOnlyList<Whole> Wholes;
         public readonly IReadOnlyList<EmojiSequence> Emojis;
+#endif
 
         private readonly EmojiNode EmojiRoot = new();
         private readonly Dictionary<int, Whole> Confusables = new();
         private readonly Whole UNIQUE_PH = new(ReadOnlyIntSet.EMPTY, ReadOnlyIntSet.EMPTY);
         private readonly Group GREEK, ASCII, EMOJI;
 
+#if NET35
+        static Dictionary<int, ICollection<int>> DecodeMapped(Decoder dec)
+        {
+            Dictionary<int, ICollection<int>> ret = new();
+#else
         static Dictionary<int, IReadOnlyList<int>> DecodeMapped(Decoder dec)
         {
             Dictionary<int, IReadOnlyList<int>> ret = new();
+#endif
+
             while (true)
             {
                 int w = dec.ReadUnsigned();
@@ -221,8 +237,13 @@ namespace ADRaffy.ENSNormalize
         {
             return ShouldEscape.Contains(cp) ? HexEscape(cp) : $"{SafeImplode(new int[] { cp })} {HexEscape(cp)}";
         }
-        public string SafeImplode(IReadOnlyList<int> cps, bool resetLTR = true)
-        {
+
+#if NET35
+        public string SafeImplode(IList<int> cps, bool resetLTR = true)
+#else
+       public string SafeImplode(IReadOnlyList<int> cps, bool resetLTR = true)
+#endif
+        { 
             int n = cps.Count;
             if (n == 0) return "";
             StringBuilder sb = new(n + 16); // guess
@@ -317,8 +338,12 @@ namespace ADRaffy.ENSNormalize
                 return new Label(input, tokens, e);
             }
         }
-
-        int[] NormalizedLabelFromTokens(IReadOnlyList<OutputToken> tokens, out Group group)
+#if NET35
+       int[] NormalizedLabelFromTokens(IList<OutputToken> tokens, out Group group)
+#else
+       int[] NormalizedLabelFromTokens(IReadOnlyList<OutputToken> tokens, out Group group)
+#endif
+       
         {
             if (tokens.Count == 0)  
             {
@@ -349,9 +374,15 @@ namespace ADRaffy.ENSNormalize
         }
 
         // assume: Groups.length > 1
+#if NET35
+        IList<Group> DetermineGroup(IList<int> unique)
+        {
+            IList<Group> prev = Groups;
+#else
         IReadOnlyList<Group> DetermineGroup(IReadOnlyList<int> unique)
         {
-            IReadOnlyList<Group> prev = Groups;
+          IReadOnlyList<Group> prev = Groups;
+#endif
             foreach (int cp in unique) {
                 Group[] next = prev.Where(g => g.Contains(cp)).ToArray();
                 if (next.Length == 0)
@@ -378,7 +409,12 @@ namespace ADRaffy.ENSNormalize
 
         // assume: cps.length > 0
         // assume: cps[0] isn't CM
+
+#if NET35
+        void CheckGroup(Group g, IList<int> cps)
+#else
         void CheckGroup(Group g, IReadOnlyList<int> cps)
+#endif
         {
             foreach (int cp in cps)
             {
@@ -418,7 +454,11 @@ namespace ADRaffy.ENSNormalize
             }
         }
 
+#if NET35
+        void CheckWhole(Group g, IList<int> unique)
+#else
         void CheckWhole(Group g, IReadOnlyList<int> unique)
+#endif
         {
             int bound = 0;
             int[]? maker = null;
@@ -475,7 +515,12 @@ namespace ADRaffy.ENSNormalize
 
         // find the longest emoji that matches at index
         // if found, returns and updates the index
-        EmojiSequence? FindEmoji(IReadOnlyList<int> cps, ref int index)
+#if NET35
+       EmojiSequence? FindEmoji(IList<int> cps, ref int index)
+#else
+       EmojiSequence? FindEmoji(IReadOnlyList<int> cps, ref int index)
+#endif
+     
         {
             EmojiNode? node = EmojiRoot;
             EmojiSequence? last = null;
@@ -491,7 +536,12 @@ namespace ADRaffy.ENSNormalize
             return last; // last emoji found
         }
 
-        List<OutputToken> OutputTokenize(IReadOnlyList<int> cps, Func<List<int>, List<int>> nf, Func<EmojiSequence, IReadOnlyList<int>> emojiStyler)
+#if NET35
+       List<OutputToken> OutputTokenize(IList<int> cps, Func<List<int>, List<int>> nf, Func<EmojiSequence, IList<int>> emojiStyler)
+#else
+       List<OutputToken> OutputTokenize(IReadOnlyList<int> cps, Func<List<int>, List<int>> nf, Func<EmojiSequence, IReadOnlyList<int>> emojiStyler)
+#endif
+
         {
             List<OutputToken> tokens = new();
             int n = cps.Count;
@@ -531,8 +581,13 @@ namespace ADRaffy.ENSNormalize
             }
             return tokens;
         }
-        // assume: cps.length > 0
+
+#if NET35
+        void CheckFenced(IList<int> cps)
+#else
         void CheckFenced(IReadOnlyList<int> cps)
+#endif
+        // assume: cps.length > 0
         {
             if (Fenced.TryGetValue(cps[0], out var name))
             {
@@ -558,8 +613,13 @@ namespace ADRaffy.ENSNormalize
                 throw new NormException($"trailing fenced", prev);
             }
         }
+
+#if NET35
+        void CheckCombiningMarks(IList<OutputToken> tokens)
+#else
         void CheckCombiningMarks(IReadOnlyList<OutputToken> tokens)
-        {
+#endif
+        { 
             for (int i = 0, e = tokens.Count; i < e; i++)
             {
                 OutputToken t = tokens[i];
@@ -577,16 +637,26 @@ namespace ADRaffy.ENSNormalize
                 }
             }
         }
-        // assume: ascii
-        static void CheckLabelExtension(IReadOnlyList<int> cps)
+
+#if NET35
+       static void CheckLabelExtension(IList<int> cps)
+#else
+       static void CheckLabelExtension(IReadOnlyList<int> cps)
+#endif
         {
+            // assume: ascii
             const int HYPHEN = 0x2D;
             if (cps.Count >= 4 && cps[2] == HYPHEN && cps[3] == HYPHEN)
             {
                 throw new NormException("invalid label extension", cps.Take(4).Implode());
             }
         }
-        static void CheckLeadingUnderscore(IReadOnlyList<int> cps)
+
+#if NET35
+        static void CheckLeadingUnderscore(IList<int> cps)
+#else
+       static void CheckLeadingUnderscore(IReadOnlyList<int> cps)
+#endif
         {
             const int UNDERSCORE = 0x5F;
             bool allowed = true;

@@ -3,9 +3,14 @@ using System.Collections.Generic;
 
 namespace ADRaffy.ENSNormalize
 {
+#if NET35
+    public class ReadOnlyIntSet : IEnumerable<int>
+    {
+#else
     public class ReadOnlyIntSet : IReadOnlyCollection<int>
     {
-        static public readonly ReadOnlyIntSet EMPTY = new(new int[0]);
+#endif
+         static public readonly ReadOnlyIntSet EMPTY = new(new int[0]);
 
         private readonly HashSet<int> Set;
         public int Count { get => Set.Count; }
@@ -13,6 +18,8 @@ namespace ADRaffy.ENSNormalize
         {
             Set = new(v);
         }
+
+
         IEnumerator<int> IEnumerable<int>.GetEnumerator() => Set.GetEnumerator(); // ew
         IEnumerator IEnumerable.GetEnumerator() => Set.GetEnumerator();
         public bool Contains(int x) => Set.Contains(x);

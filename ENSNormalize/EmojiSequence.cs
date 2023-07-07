@@ -6,8 +6,13 @@ namespace ADRaffy.ENSNormalize
     public class EmojiSequence
     {
         public readonly string Form;
-        public readonly IReadOnlyList<int> Beautified;
+#if NET35
+        public readonly IList<int> Beautified;
+        public readonly IList<int> Normalized;
+#else
+       public readonly IReadOnlyList<int> Beautified;
         public readonly IReadOnlyList<int> Normalized;
+#endif
         public bool IsMangled { get => Beautified != Normalized; }
         internal EmojiSequence(int[] cps)
         {
